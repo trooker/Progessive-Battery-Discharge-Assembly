@@ -1,0 +1,548 @@
+# -*- coding: utf-8 -*-
+
+#***************************************************************************
+#*                                                                               *
+#*   Copyright (c) 2021 Abbott Analytical Products   <http://abbottanp.com/>*
+#*                                                                               *
+#* This program rotates the gun through the firing cycle of the available
+#*   firing positions. 
+#* See HK UMP Armorer's Manaul pages 19 -24
+#* One Full Turn of Wheel accomplishes following  8 cyclic  events starting
+#*   with 0 yields 0-7 steps			
+
+# Individual Gun Functioning Events
+# Trigger Hosuing Functionality
+#	Crank Event/Firing Cycle or Sequence of a Single Gun of the Battery
+# 0> Firing	 				
+# 1> Unlocking-Extraction-Cocking				
+# 1> NoOp1		# May switch with Ejection	
+# 3> Ejection		
+# 4> Feeding				
+# 5> NoOp2		# May Switch with Feeding and/or Chambering				
+# 6> Chambering				
+# 7> Locking	
+
+#* 211211_tr   Synced ControlDisk to rotation of Axial.  
+#* 211209_tr   Incorporated FingerPull  028-999
+#* 211208_tr   Initial creation.  Adapted from CrankFire.FCMacro                                                 *
+#***************************************************************************
+
+
+
+__title__="Progessive Rotation of Four Pushrods"
+__author__ = "Tom Rooker"
+__url__ = "http://abbottanp.com"
+
+
+ 
+# Macro Begin: /home/tom/.FreeCAD/CrankFire.FCMacro +++++++++++++++++++++++++++++++++++++++++++++++++
+
+# -*- coding: utf-8 -*-
+
+import FreeCAD as App
+import time, math, PySide
+import a2p_importpart
+#import DraftTools
+import Draft
+
+
+#testing for trigger
+wrkStr = "_64_983_Gun_Battery"
+#wrkStr = "_64_989_Gun_Battery"
+
+
+## wrkStr = "_73_999_Gun_Battery_"
+baseWheelAngle = 239.9690    # When slot of wheel at top matches axle tab    
+newWheelAngle  = baseWheelAngle  
+
+
+App.setActiveDocument(wrkStr)
+App.ActiveDocument=App.getDocument(wrkStr)
+Gui.ActiveDocument=Gui.getDocument(wrkStr)
+
+X1_Offset = -279.4   #  Bolt1 11in   to posiiton x placement  
+X2_Offset = -323.85  #  Bolt3 14.54in   to position x placement  
+
+roundsFired= 0  #
+kntr1 = 0  # start at one less 
+kntr2 = 4
+
+# Gives two firing cycles of battery after a dry first cycle
+# Single Steps battery through cycle.
+magCapacity = 1 #24 #  10    #25  # for test 1    # 8   #rounds in magazine  5   #7   #14    # trial and error
+cycleStepsTotal = 2  # 8-1 cyclic  events  0..7
+
+
+timeout = 0.001
+degPerRad = 57.2958
+gun1Fired = 0    # Gun1 will Feed, Chamber, Lock, Fire before Gun3
+
+# Governs speed of Cycle/Firing
+#watchalarm = 100000000  # uuperslow mode
+#watchalarm = 50000000   #almost slow
+watchalarm = 10000000  # slow mode
+#watchalarm = 100000     # fast mode by default unless commented-out
+
+
+#*movStep +/- (6.0943 - 3.434) /4 = .665075in or 16.892905 forward and back 
+# 6.0943in Gap between Chamber Collar and SpringGuideRodDiskLeading Face
+# 3.434in Front to rear of Bolt Block Firing Pin Section
+
+
+
+
+
+class BatteryLocus1:   # linear motion
+    def posX(self, locus):
+        default = 0
+        return getattr(self, 'case_' + str(locus), lambda: default)()
+    def case_0(self):
+        return -279.4000
+    def case_1(self):
+        return -309.372   #-301.8790
+    def case_2(self):
+        return -339.344   #-324.3580
+    def case_3(self):
+        return -369.3160
+    def case_4(self):
+       return -369.3160
+    def case_5(self):
+        return -339.344
+    def case_6(self):
+        return -309.372
+    def case_7(self):
+        return -279.4000
+   
+
+class BatteryLocus3:  # linear motion
+    def posX(self, locus):
+        default = 0
+        return getattr(self, 'case_' + str(locus), lambda: default)()
+    def case_0(self):
+        return -369.3160
+    def case_1(self):
+        return -339.344
+    def case_2(self):
+        return -309.372
+    def case_3(self):
+        return -279.4000
+    def case_4(self):
+       return -279.4000
+    def case_5(self):
+        return -309.372
+    def case_6(self):
+        return -339.344
+    def case_7(self):
+        return -369.3160
+    
+
+   
+X1_locus = BatteryLocus1()
+X3_locus = BatteryLocus3()
+
+# for loop to test
+#print (X1_locus.posX(0), " : X1  .............. X3: ", X3_locus.posX(0))
+#.....
+#print (X1_locus.posX(8), " : X1  .............. X3: ", X3_locus.posX(8))
+
+bolt1    = App.ActiveDocument.getObject("_14_998_bolt_carrier_001")
+bolt3    = App.ActiveDocument.getObject("_14_998_bolt_carrier_001001")
+housing1 = App.ActiveDocument.getObject("_00_999_HousingAssy_001")
+housing3 = App.ActiveDocument.getObject("_00_999_HousingAssy_001001")
+prod1    = App.ActiveDocument.getObject("_07_999_pushrod4Bolt_001")
+prod3    = App.ActiveDocument.getObject("_07_999_pushrod4Bolt_001001")
+hammer   = App.ActiveDocument.getObject("_18_999_hammer_001")
+sear     = App.ActiveDocument.getObject("_19_998_sear_001")
+trigger  =  App.ActiveDocument.getObject("_21_999_trigger_001")
+
+#separate but equal
+finger   = App.ActiveDocument.getObject("_28_999_TriggerFinger_001")
+
+
+
+## Axial LCS location in mm
+#was  wrkDraftBoltRotatePivot = FreeCAD.Vector(-717.34,499.994,23.95)
+
+##Axial Rotation of items around the x-Axis
+vx = 1.0   # Rotate around x-axis of LCS
+vy = 0.0 
+vz = 0.0
+
+wrkAxis             = FreeCAD.Vector(vx,vy,vz)
+triggerWrkAxis      = FreeCAD.Vector(0,-1,0)
+
+## Axial/Pin LCS location in mm of around which item will pivot
+#wrkDraftBoltRotatePivot           = FreeCAD.Vector(-717.3468,499.9932,25.00)
+
+# Measured Draft Rotate Center Buffer Block
+# wrkDraftBoltRotatePivot            = FreeCAD.Vector(500.0244,24.84882,0.00)  
+wrkDraftBoltRotatePivot              = FreeCAD.Vector(0.0,500,25)  
+#964_996
+hammerOrigin        = FreeCAD.Vector(-294.813537598,0.0,112.878937728)   #Draft Rotate FreeCAD.Vector(use X,discard Y ==>>0.0,use Z)
+searCockingOrigin   = FreeCAD.Vector(-316.829406738,0.0,127.627388)   
+searFiringOrigin    = searCockingOrigin  
+triggerOrigin       = FreeCAD.Vector(-316.829406738,0.0,127.627388)   
+
+triggerWrkAxis       = FreeCAD.Vector(0,-1,0) #trigger, sear, and hammer rotate around the -Y-axis
+
+
+
+		
+class HammerRotate1:
+    def posRotate(self, degH):
+        default = 0
+        return getattr(self, 'case_' + str(degH), lambda: default)()
+    def case_1(self):  #Cocked
+       print("Hammer Cocked")
+       return  -1.67552  
+    def case_0(self): #Fired
+       print("Hammer Fired")
+       return  1.67552   #96 deg og rotation   360-96 = 264  ==>> 4.60767
+
+class SearRotate1:
+    def posRotate(self, degS):
+        default = 0
+        return getattr(self, 'case_' + str(degS), lambda: default)()
+    def case_1(self):  #Cocked
+       return  5.84685    #335 deg
+       return 0        #Fired
+    def case_0(self):
+        return  0.436332   # 25 deg
+        
+class TriggerRotate1:
+    def posRotate(self, degS):
+        default = 0
+        return getattr(self, 'case_' + str(degS), lambda: default)()
+    def case_1(self):  #Cocked
+       return   5.84685    #335 deg
+    def case_0(self): #Fired
+        return  0.436332  #25 deg
+        
+
+class HammerRotate3:
+    def posRotate(self, degH):
+        default = 0
+        return getattr(self, 'case_' + str(degH), lambda: default)()
+    def case_5(self):  #Cocked
+       print("Hammer Cocked")
+       return  -1.67552  
+    def case_4(self): #Fired
+       print("Hammer Fired")
+       return  1.67552   #96 deg og rotation   360-96 = 264  ==>> 4.60767
+
+class SearRotate3:
+    def posRotate(self, degS):
+        default = 0
+        return getattr(self, 'case_' + str(degS), lambda: default)()
+    def case_5(self):  #Cocked
+       return  5.84685    #335 deg
+       return 0        #Fired
+    def case_4(self):
+        return  0.436332   # 25 deg
+        
+class TriggerRotate3:
+    def posRotate(self, degS):
+        default = 0
+        return getattr(self, 'case_' + str(degS), lambda: default)()
+    def case_5(self):  #Cocked
+       return   5.84685    #335 deg
+    def case_4(self): #Fired
+        return  0.436332  #25 deg
+        
+
+
+
+Hammer1_rotates  = HammerRotate1()
+Sear1_rotates    = SearRotate1()
+Trigger1_rotates = TriggerRotate1()
+
+Hammer3_rotates  = HammerRotate3()
+Sear3_rotates    = SearRotate3()
+Trigger3_rotates = TriggerRotate3()
+
+
+class FireCockGun1:
+    isFirstRoundLocked1 = False
+    def __init__(self):
+        FireCockGun1.isFirstRoundLocked1 = False
+    def gunCycle(self, knt):
+        default = 9
+        return getattr(self, 'case_' + str(knt), lambda: default)()
+    def case_1(self):  #Cocked
+        print("cycleKnt == 1")
+        if FireCockGun1.isFirstRoundLocked1 == False:  # Force no change since gun is not ready to fire.
+          degHammer   = 0; 
+          degSear     = 0
+          degTrigger  = 0
+          FireCockGun1.isFirstRoundLocked1   = True   # Value is not longer stagent but changes as gun cycles
+          # print("isFirstRoundLocked1  Set to True")
+        else:
+          # s=raw_input("Cocking1 Input: ")
+          s = "Cocking Hammer After Firing Gun1"
+          print s
+          degHammer  = Hammer1_rotates.posRotate(cycleKnt)   * degPerRad
+          degTrigger = Trigger1_rotates.posRotate(cycleKnt)  * degPerRad
+          degSear    = Sear1_rotates.posRotate(cycleKnt)     * degPerRad
+          Draft.rotate([hammer],degHammer,hammerOrigin,axis=triggerWrkAxis,copy=False)
+          Draft.rotate([trigger],degTrigger,triggerOrigin,axis=triggerWrkAxis,copy=False)
+          Draft.rotate([sear],degSear,searCockingOrigin,axis=triggerWrkAxis,copy=False)
+          # print(cycleKnt," : Cocked       degHammer: ",degHammer,"    degSear: ",degSear,"    degTrigger: ",degTrigger)
+ #Sear should be returned to original position
+      #  FreeCADGui.ActiveDocument.getObject("_19_998_sear_001").Visibility = True
+          if wrkStr == "_04_999_spikeTriggerHousingFunction":
+           sear.Placement.Base.x = -0.58389266  #mm
+           sear.Placement.Base.y = -33.49498    
+           sear.Placement.Base.z = -24.20366
+          else:   # non trigger function assy 
+           # all other assy testing from 9** series 
+           # check sear placement xyz convert to inchec--> mm
+           sear.Placement.Base.x = -309.28056  #mm
+           sear.Placement.Base.y =  529.65096
+           sear.Placement.Base.z =  124.29744
+        return   0
+    def case_0(self): #Fired
+       if (cycleKnt == 0)  and (FireCockGun1.isFirstRoundLocked1 == True):
+          #s=raw_input("Firing Input: ")
+          s = "Firing Hammer Gun1"
+          print s
+          degHammer   = Hammer1_rotates.posRotate(cycleKnt)  * degPerRad
+          degSear     = Sear1_rotates.posRotate(cycleKnt)    * degPerRad 
+          degTrigger  = Trigger1_rotates.posRotate(cycleKnt) * degPerRad
+ # Need to move sear to rear of slot and switch pivot point of rotation
+#     sear.Placement.Base.x =  -1.93810382   #-8.12687  #3.01244    # 0.1186# #-8.3126 #  +5.08 
+#     sear.Placement.Base.z = -9.63676 #-20.9673 #-14.77264  #-0.5816 #-21.34
+          Draft.rotate([hammer],degHammer,hammerOrigin,axis=triggerWrkAxis,copy=False)
+          Draft.rotate([trigger],degTrigger,triggerOrigin,axis=triggerWrkAxis,copy=False)
+          Draft.rotate([sear],degSear,searFiringOrigin,axis=triggerWrkAxis,copy=False)
+          # print(cycleKnt," :cycle    degHammer: ",degHammer,"    degSear: ",degSear, "    degTrigger: ", degTrigger)
+       return  1
+
+class FireCockGun3:
+    isFirstRoundLocked3 = False
+    def __init__(self):
+        FireCockGun3.isFirstRoundLocked3 = False
+    def gunCycle(self, knt):
+        default = 9
+        return getattr(self, 'case_' + str(knt), lambda: default)()
+    def case_5(self):  #Cocked
+        print("cycleKnt == 5")
+        if FireCockGun3.isFirstRoundLocked3 == False:  # Force no change since gun is not ready to fire.
+          degHammer   = 0; 
+          degSear     = 0
+          degTrigger  = 0
+          FireCockGun3.isFirstRoundLocked3   = True   # Value is not longer stagent but changes as gun cycles
+          # print("isFirstRoundLocked3  Set to True")
+        else:
+          # s=raw_input("Cocking1 Input: ")
+          s = "Cocking Hammer After Firing Gun3"
+          print s
+          degHammer  = Hammer3_rotates.posRotate(cycleKnt)   * degPerRad
+          degTrigger = Trigger3_rotates.posRotate(cycleKnt)  * degPerRad
+          degSear    = Sear3_rotates.posRotate(cycleKnt)     * degPerRad
+          Draft.rotate([hammer],degHammer,hammerOrigin,axis=triggerWrkAxis,copy=False)
+          Draft.rotate([trigger],degTrigger,triggerOrigin,axis=triggerWrkAxis,copy=False)
+          Draft.rotate([sear],degSear,searCockingOrigin,axis=triggerWrkAxis,copy=False)
+          # print(cycleKnt," : Cocked       degHammer: ",degHammer,"    degSear: ",degSear,"    degTrigger: ",degTrigger)
+ #Sear should be returned to original position
+      #  FreeCADGui.ActiveDocument.getObject("_19_998_sear_001").Visibility = True
+          if wrkStr == "_04_999_spikeTriggerHousingFunction":
+           sear.Placement.Base.x = -0.58389266  #mm
+           sear.Placement.Base.y = -33.49498    
+           sear.Placement.Base.z = -24.20366
+          else:   # non trigger function assy 
+           # all other assy testing from 9** series 
+           # check sear placement xyz convert to inchec--> mm
+           sear.Placement.Base.x = -309.28056  #mm
+           sear.Placement.Base.y =  529.65096
+           sear.Placement.Base.z =  124.29744
+        return   0
+    def case_4(self): #Fired
+       if cycleKnt == 4  and FireCockGun3.isFirstRoundLocked3 == True:
+          #s=raw_input("Firing Input: ")
+          s = "Firing Hammer Gun3"
+          print s
+          degHammer   = Hammer3_rotates.posRotate(cycleKnt)  * degPerRad
+          degSear     = Sear3_rotates.posRotate(cycleKnt)    * degPerRad 
+          degTrigger  = Trigger3_rotates.posRotate(cycleKnt) * degPerRad
+ # Need to move sear to rear of slot and switch pivot point of rotation
+#     sear.Placement.Base.x =  -1.93810382   #-8.12687  #3.01244    # 0.1186# #-8.3126 #  +5.08 
+#     sear.Placement.Base.z = -9.63676 #-20.9673 #-14.77264  #-0.5816 #-21.34
+          Draft.rotate([hammer],degHammer,hammerOrigin,axis=triggerWrkAxis,copy=False)
+          Draft.rotate([trigger],degTrigger,triggerOrigin,axis=triggerWrkAxis,copy=False)
+          Draft.rotate([sear],degSear,searFiringOrigin,axis=triggerWrkAxis,copy=False)
+          #print(cycleKnt," :cycle    degHammer: ",degHammer,"    degSear: ",degSear, "    degTrigger: ", degTrigger)
+       return  1
+
+
+
+Gun1_FireSeq = FireCockGun1()
+Gun3_FireSeq = FireCockGun3()
+
+
+
+
+fingerFire = 104.14
+fingerCock = 124.00026
+
+class FingerLocus:   # Z linear motion
+    isFirstRoundLocked1 = False
+    isFirstRoundLocked3 = False
+    def __init__(self):
+        FingerLocus.isFirstRoundLocked1 = False
+        FingerLocus.isFirstRoundLocked3 = False
+    def posZ(self, locus):
+        default = 0
+        return getattr(self, 'case_' + str(locus), lambda: default)()
+    def case_0(self):
+        if FingerLocus.isFirstRoundLocked1 == False:  # Force no change since gun is not ready to fire.
+          FingerLocus.isFirstRoundLocked1   = True    # Value is not longer stagnet but changes as gun cycles
+          print("isFirstRoundLocked1 for TriggerFinger  Set to True")
+          value = fingerCock
+        else:
+          # s=raw_input("Cocking1 Input: ")
+          s = "Pulling Trigger Finger"
+          print s
+          value = fingerFire
+        return value
+    def case_1(self):
+        return fingerCock  
+    def case_2(self):
+        return fingerCock   
+    def case_3(self):
+        return fingerCock
+    def case_4(self):
+        if FingerLocus.isFirstRoundLocked3 == False:  # Force no change since gun is not ready to fire.
+          FingerLocus.isFirstRoundLocked3   = True    # Value is not longer stagnet but changes as gun cycles
+          print("isFirstRoundLocked3 for TriggerFinger  Set to True")
+          value = fingerCock
+        else:
+          # s=raw_input("Cocking1 Input: ")
+          s = "Pulling Trigger Finger"
+          print s
+          value = fingerFire    
+        return value
+    def case_5(self):
+        return fingerCock
+    def case_6(self):
+        return fingerCock
+    def case_7(self):
+        return fingerCock
+
+
+Zfinger_locus = FingerLocus()
+
+
+
+
+
+cycleKnt = 0
+raInc4_45 = 0.785398
+boltHouDeg = -45    #45
+
+#Force/Insure proper Zero
+
+rtnFlg = 999
+X2_turned = False
+print("before while statement")
+while roundsFired< magCapacity:
+
+
+  print("Top of New Event: Round to Be Fired: ", roundsFired, "      cycleKnt: ", cycleKnt)
+  print(".")
+  #s=raw_input("Start This Step Increment By Keying Rtn: ")
+  s = "Start of Step Increment"
+  print s
+ # print(App.ActiveDocument.getObject("_13_997_BufferBlockDisk_001").Placement.Rotation.Angle,"Buffer Block Angle")
+ # print(App.ActiveDocument.getObject("_00_999_HousingAssy_001").Placement.Rotation.Angle,"Housing Angle")
+
+
+
+# Objects Rotating around axial
+# Bolt, Rod, Housing
+
+  degBolt1    = boltHouDeg  # 45   was bolt1.Placement.Rotation.Angle
+  degBolt3    = degBolt1
+  degHousing1 = degBolt1
+  degHousing3 = degBolt1
+  degPRod1    = degBolt1
+  degPRod3    = degBolt1
+  Draft.rotate([FreeCAD.ActiveDocument._14_998_bolt_carrier_001],   boltHouDeg,wrkDraftBoltRotatePivot,axis=wrkAxis,copy=False)
+  Draft.rotate([FreeCAD.ActiveDocument._14_998_bolt_carrier_001001],boltHouDeg,wrkDraftBoltRotatePivot,axis=wrkAxis,copy=False)
+  Draft.rotate([FreeCAD.ActiveDocument._00_999_HousingAssy_001],    boltHouDeg,wrkDraftBoltRotatePivot,axis=wrkAxis,copy=False)
+  Draft.rotate([FreeCAD.ActiveDocument._00_999_HousingAssy_001001], boltHouDeg,wrkDraftBoltRotatePivot,axis=wrkAxis,copy=False)
+  Draft.rotate([FreeCAD.ActiveDocument._07_999_pushrod4Bolt_001],   boltHouDeg,wrkDraftBoltRotatePivot,axis=wrkAxis,copy=False)
+  Draft.rotate([FreeCAD.ActiveDocument._07_999_pushrod4Bolt_001001],boltHouDeg,wrkDraftBoltRotatePivot,axis=wrkAxis,copy=False)
+
+  
+  
+#Linear Motion Parallel with Axial Rotation Motion Around Axial
+
+  movFP = Zfinger_locus.posZ(cycleKnt)
+  
+  
+  finger.Placement.Base.z = movFP
+
+
+  movX1 = X1_locus.posX(cycleKnt)  
+  movX3 = X3_locus.posX(cycleKnt)   
+
+  bolt1.Placement.Base.x = movX1 
+  bolt3.Placement.Base.x = movX3
+  
+  
+#$$ 211209 Set to CrankFire values  
+  App.ActiveDocument.getObject("_05_998_Axial_001").Placement.Rotation.Angle             += raInc4_45     
+  App.ActiveDocument.getObject("_09_997_AxleWheel_handle_001").Placement.Rotation.Angle  -=raInc4_45   
+  App.ActiveDocument.getObject("_03_997_S1_Disk_Anterior_001").Placement.Rotation.Angle  +=raInc4_45  
+# 211208_tr discovered 013 sins otherwise starting at 270  
+  App.ActiveDocument.getObject("_13_997_BufferBlockDisk_001").Placement.Rotation.Angle   -=raInc4_45    
+  App.ActiveDocument.getObject("_49_997_BarrelBatteryAssy_001").Placement.Rotation.Angle +=raInc4_45   
+  # Should be exactlyopposite the BarrelBatteryAssy
+# 211208_tr discovered 026 sins otherwise starting at 270  
+  App.ActiveDocument.getObject("_26_999_ControlDisk_001").Placement.Rotation.Angle       -=raInc4_45   
+  
+  if cycleKnt == 0:
+      #s=raw_input("Start Gun1 Fire: ")
+      #print s
+
+      gun1Fired = Gun1_FireSeq.gunCycle(cycleKnt)
+      rtnFlag = gun1Fired
+      s = "Start Gun1 Fire: "
+      print(s, gun1Fired)
+  if cycleKnt == 1:
+     # s=raw_input("Start Gun1 Cocking: ")
+     # print s
+      rtnFlag = Gun1_FireSeq.gunCycle(cycleKnt)
+  if cycleKnt == 4:
+     # s=raw_input("Start Gun3 Fire: ")
+     # print s
+      rtnFlag = Gun3_FireSeq.gunCycle(cycleKnt)
+  if cycleKnt == 5:
+     # s=raw_input("Start Gun3 Cocking: ")
+     # print s
+      rtnFlag = Gun3_FireSeq.gunCycle(cycleKnt)
+
+    
+     
+     
+ 
+ # Now increments counters for the next loop/cycle  
+# 360/8 = 45 degrees
+  if cycleKnt < cycleStepsTotal:  # 0..7  Actions/Events
+    cycleKnt +=1
+  else:
+   cycleKnt = 0
+  print("") 
+  if (cycleKnt == 0 or cycleKnt == 4) and gun1Fired > 0:
+      roundsFired+= 1
+  else:
+      roundsFired+= 0
+
+ 
+  Gui.updateGui() 
+  watchdogtimer = 0 
+  while watchdogtimer < watchalarm:
+    watchdogtimer += 1
+    
+print("Fire Mission Completed.  Battery ready ready for next mission.")
+
