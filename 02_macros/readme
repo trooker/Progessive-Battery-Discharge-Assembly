@@ -1,0 +1,9 @@
+Macros that provide annimation.
+
+CrankFire.macro:  Fires a full magazine at speed.
+CrankFireSingleStep: Singles steps through the Fire Cycle to allow user to reach a specific cycle position.
+Crank2Zero: Allows user to single step to the Zero position.
+
+These macros and their associated icons should be installed in the appropriate annimation workbench (suggested A2Plus) 
+to support the desired annimation.  See the sub-folder for the process steps to install the macros and icons in the
+workbench toolbar.
