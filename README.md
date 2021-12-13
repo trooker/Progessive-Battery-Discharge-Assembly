@@ -1,5 +1,4 @@
 # Progessive Battery Discharge Assembly
-Self:
 
 
 This collection of artifacts presents a response to a project design challenge designed to replicate the manual progressive discharge of a battery of single round smallarms fire in a manner of the original design of Dr. Gatlin.  The intent is to stay within the Federal Firearm regulations by employing only manual power to cycle the individual guns within the battery.
