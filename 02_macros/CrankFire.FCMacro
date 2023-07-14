@@ -65,7 +65,7 @@
 #* 12> Done: Clam Shell Top Opening for Trigger Housing and components  (Trigger, Sear, Hammer)
 #* 13> TBD: Need to reconcile the axial keying and the shaft.  They just do not align/constrain as expected.
 
-
+#* 230714_tr  Corrected print(s) error where s is a string previously set
 #* 211211_tr  Synced ControlDisk to rotation of Axial.  Confrimed with video this AM 1105.
 #*            Tweaked To Do List
 #* 211208_tr  Added finger fire/cock movement
@@ -425,8 +425,8 @@ class FireCockGun1:
           # print("isFirstRoundLocked1  Set to True")
         else:
           # s=raw_input("Cocking1 Input: ")
-          s = "Cocking Hammer After Firing Gun1"
-          print s
+          s = "Cocking Hammer After Firing Gun1\n"
+          print(s)
           degHammer  = Hammer1_rotates.posRotate(cycleKnt)   * degPerRad
           degTrigger = Trigger1_rotates.posRotate(cycleKnt)  * degPerRad
           degSear    = Sear1_rotates.posRotate(cycleKnt)     * degPerRad
@@ -451,7 +451,7 @@ class FireCockGun1:
        if (cycleKnt == 0)  and (FireCockGun1.isFirstRoundLocked1 == True):
           #s=raw_input("Firing Input: ")
           s = "Firing Hammer Gun1"
-          print s
+          print(s)
           degHammer   = Hammer1_rotates.posRotate(cycleKnt)  * degPerRad
           degSear     = Sear1_rotates.posRotate(cycleKnt)    * degPerRad 
           degTrigger  = Trigger1_rotates.posRotate(cycleKnt) * degPerRad
@@ -482,7 +482,7 @@ class FireCockGun3:
         else:
           # s=raw_input("Cocking1 Input: ")
           s = "Cocking Hammer After Firing Gun3"
-          print s
+          print(s)
           degHammer  = Hammer3_rotates.posRotate(cycleKnt)   * degPerRad
           degTrigger = Trigger3_rotates.posRotate(cycleKnt)  * degPerRad
           degSear    = Sear3_rotates.posRotate(cycleKnt)     * degPerRad
@@ -507,7 +507,7 @@ class FireCockGun3:
        if cycleKnt == 4  and FireCockGun3.isFirstRoundLocked3 == True:
           #s=raw_input("Firing Input: ")
           s = "Firing Hammer Gun3"
-          print s
+          print(s)
           degHammer   = Hammer3_rotates.posRotate(cycleKnt)  * degPerRad
           degSear     = Sear3_rotates.posRotate(cycleKnt)    * degPerRad 
           degTrigger  = Trigger3_rotates.posRotate(cycleKnt) * degPerRad
@@ -546,7 +546,7 @@ class FingerLocus:   # Z linear motion
         else:
           # s=raw_input("Cocking1 Input: ")
           s = "Pulling Trigger Finger"
-          print s
+          print(s)
           value = fingerFire
         return value
     def case_1(self):
@@ -563,7 +563,7 @@ class FingerLocus:   # Z linear motion
         else:
           # s=raw_input("Cocking1 Input: ")
           s = "Pulling Trigger Finger"
-          print s
+          print(s)
           value = fingerFire    
         return value
     def case_5(self):
@@ -596,7 +596,7 @@ class FeedLocus:   # Z linear motion
         else:
           # s=raw_input("Cocking1 Input: ")
           s = "Pulling Trigger Finger"
-          print s
+          print(s)
           value = fingerPawClosed
         return value
     def case_1(self):
@@ -613,7 +613,7 @@ class FeedLocus:   # Z linear motion
         else:
           # s=raw_input("Cocking1 Input: ")
           s = "Pulling Trigger Finger"
-          print s
+          print(s)
           value = fingerPawClosed    
         return value
     def case_5(self):
@@ -651,7 +651,7 @@ while roundsFired< magCapacity:
   print(".")
   #s=raw_input("Start This Step Increment By Keying Rtn: ")
   s = "Start of Step Increment"
-  print s
+  print(s)
  # print(App.ActiveDocument.getObject("_13_997_BufferBlockDisk_001").Placement.Rotation.Angle,"Buffer Block Angle")
  # print(App.ActiveDocument.getObject("_00_999_HousingAssy_001").Placement.Rotation.Angle,"Housing Angle")
 
@@ -704,7 +704,7 @@ while roundsFired< magCapacity:
   
   if cycleKnt == 0:
       #s=raw_input("Start Gun1 Fire: ")
-      #print s
+      #print(s)
 
       gun1Fired = Gun1_FireSeq.gunCycle(cycleKnt)
       rtnFlag = gun1Fired
@@ -712,15 +712,15 @@ while roundsFired< magCapacity:
       print(s, gun1Fired)
   if cycleKnt == 1:
      # s=raw_input("Start Gun1 Cocking: ")
-     # print s
+     # print(s)
       rtnFlag = Gun1_FireSeq.gunCycle(cycleKnt)
   if cycleKnt == 4:
      # s=raw_input("Start Gun3 Fire: ")
-     # print s
+     # print(s)
       rtnFlag = Gun3_FireSeq.gunCycle(cycleKnt)
   if cycleKnt == 5:
      # s=raw_input("Start Gun3 Cocking: ")
-     # print s
+     # print(s)
       rtnFlag = Gun3_FireSeq.gunCycle(cycleKnt)
 
     
